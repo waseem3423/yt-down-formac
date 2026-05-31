@@ -1,0 +1,17 @@
+{
+  "name": "yt-downloader-api",
+  "version": "1.0.0",
+  "description": "YT Video Downloader Backend API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "fastify": "^4.26.2",
+    "@fastify/cors": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
