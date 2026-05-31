@@ -1,23 +1,23 @@
 use std::process::Command;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
-use tauri::Manager;
+use tauri::Emitter;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DownloadProgress {
-    pub status: String,   // "downloading" | "merging" | "done" | "error"
+    pub status: String,
     pub message: String,
 }
 
 #[derive(Deserialize)]
 pub struct DownloadRequest {
     pub url: String,
-    pub quality: String,  // "720p" | "1080p" | "audio"
+    pub quality: String,
     pub output_dir: String,
 }
 
 #[tauri::command]
-pub async fn start_download(
+async fn start_download(
     window: tauri::Window,
     request: DownloadRequest,
 ) -> Result<String, String> {
@@ -25,18 +25,15 @@ pub async fn start_download(
     let quality = request.quality.as_str();
     let output_dir = PathBuf::from(&request.output_dir);
 
-    // Validate URL
     if !url.contains("youtube.com/watch?v=") && !url.contains("youtu.be/") {
         return Err("Invalid YouTube URL".to_string());
     }
 
-    // Emit progress
     let _ = window.emit("download-progress", DownloadProgress {
         status: "downloading".to_string(),
         message: "Starting download...".to_string(),
     });
 
-    // Build yt-dlp args based on quality
     let output_template = output_dir
         .join("%(title)s.%(ext)s")
         .to_string_lossy()
@@ -62,7 +59,6 @@ pub async fn start_download(
             ]);
         }
         _ => {
-            // Default 720p
             args.extend([
                 "-f".to_string(),
                 "bestvideo[height<=720]+bestaudio/best[height<=720]".to_string(),
@@ -77,7 +73,6 @@ pub async fn start_download(
         "--newline".to_string(),
     ]);
 
-    // Run yt-dlp
     let output = Command::new("yt-dlp")
         .args(&args)
         .output()
@@ -104,8 +99,7 @@ pub async fn start_download(
 }
 
 #[tauri::command]
-pub async fn get_default_download_dir() -> String {
-    // Returns user's Downloads folder
+async fn get_default_download_dir() -> String {
     if let Some(home) = dirs_next::home_dir() {
         home.join("Downloads").to_string_lossy().to_string()
     } else {

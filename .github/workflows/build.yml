@@ -23,6 +23,35 @@ jobs:
         working-directory: tauri-app
         run: npm install
 
+      - name: Generate Tauri icons
+        working-directory: tauri-app
+        run: npx @tauri-apps/cli icon src-tauri/icons/source.png || true
+
+      - name: Create placeholder icons if missing
+        run: |
+          mkdir -p tauri-app/src-tauri/icons
+          cd tauri-app/src-tauri/icons
+          # Create minimal valid PNG files using Python
+          python3 -c "
+          import struct, zlib
+
+          def make_png(size):
+              def chunk(name, data):
+                  c = struct.pack('>I', len(data)) + name + data
+                  return c + struct.pack('>I', zlib.crc32(name + data) & 0xffffffff)
+              sig = b'\\x89PNG\\r\\n\\x1a\\n'
+              ihdr = chunk(b'IHDR', struct.pack('>IIBBBBB', size, size, 8, 2, 0, 0, 0))
+              row = b'\\x00' + b'\\xff\\x00\\x00' * size
+              raw = row * size
+              idat = chunk(b'IDAT', zlib.compress(raw))
+              iend = chunk(b'IEND', b'')
+              return sig + ihdr + idat + iend
+
+          for name, size in [('32x32.png',32),('128x128.png',128),('128x128@2x.png',256)]:
+              open(name,'wb').write(make_png(size))
+          print('Icons created')
+          "
+
       - name: Build Tauri app (macOS .dmg)
         working-directory: tauri-app
         run: npm run tauri build
@@ -52,6 +81,29 @@ jobs:
       - name: Install frontend dependencies
         working-directory: tauri-app
         run: npm install
+
+      - name: Create placeholder icons if missing
+        run: |
+          New-Item -ItemType Directory -Force -Path tauri-app/src-tauri/icons
+          python -c "
+          import struct, zlib
+
+          def make_png(size):
+              def chunk(name, data):
+                  c = struct.pack('>I', len(data)) + name + data
+                  return c + struct.pack('>I', zlib.crc32(name + data) & 0xffffffff)
+              sig = b'\x89PNG\r\n\x1a\n'
+              ihdr = chunk(b'IHDR', struct.pack('>IIBBBBB', size, size, 8, 2, 0, 0, 0))
+              row = b'\x00' + b'\xff\x00\x00' * size
+              raw = row * size
+              idat = chunk(b'IDAT', zlib.compress(raw))
+              iend = chunk(b'IEND', b'')
+              return sig + ihdr + idat + iend
+
+          for name, size in [('32x32.png',32),('128x128.png',128),('128x128@2x.png',256)]:
+              open('tauri-app/src-tauri/icons/'+name,'wb').write(make_png(size))
+          print('Icons created')
+          "
 
       - name: Build Tauri app (Windows .exe)
         working-directory: tauri-app
