@@ -1,5 +1,6 @@
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::path::PathBuf;
+use std::io::{BufRead, BufReader};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 
@@ -31,7 +32,7 @@ async fn start_download(
 
     let _ = window.emit("download-progress", DownloadProgress {
         status: "downloading".to_string(),
-        message: "Starting download...".to_string(),
+        message: "Starting yt-dlp...".to_string(),
     });
 
     let output_template = output_dir
@@ -69,19 +70,47 @@ async fn start_download(
 
     args.extend([
         "--no-playlist".to_string(),
-        "-o".to_string(), output_template,
         "--newline".to_string(),
+        "-o".to_string(), output_template,
     ]);
 
-    let output = Command::new("yt-dlp")
-        .args(&args)
-        .output()
-        .map_err(|e| format!("Failed to run yt-dlp: {}. Make sure yt-dlp is installed.", e))?;
+    // Spawn yt-dlp — no console window, capture stdout for progress
+    let mut cmd = Command::new("yt-dlp");
+    cmd.args(&args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    // Hide console window on Windows
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+
+    let mut child = cmd.spawn()
+        .map_err(|e| format!("Failed to start yt-dlp: {}. Make sure yt-dlp is installed.", e))?;
+
+    // Read stdout line by line for progress updates
+    if let Some(stdout) = child.stdout.take() {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines() {
+            if let Ok(line) = line {
+                if !line.trim().is_empty() {
+                    let _ = window.emit("download-progress", DownloadProgress {
+                        status: "downloading".to_string(),
+                        message: line.clone(),
+                    });
+                }
+            }
+        }
+    }
+
+    let output = child.wait_with_output()
+        .map_err(|e| format!("Failed to wait for yt-dlp: {}", e))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let error_msg = if !stderr.is_empty() { stderr } else { stdout };
+        let error_msg = if !stderr.is_empty() { stderr } else { "Download failed".to_string() };
 
         let _ = window.emit("download-progress", DownloadProgress {
             status: "error".to_string(),

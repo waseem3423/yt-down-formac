@@ -23,9 +23,11 @@ invoke('get_default_download_dir').then((dir) => {
 listen('download-progress', (event) => {
   const { status, message } = event.payload;
   if (status === 'downloading') {
-    setStatus('loading', message);
+    // Show last meaningful yt-dlp line
+    const clean = message.replace(/\[download\]\s*/, '').trim();
+    if (clean) setStatus('loading', clean);
   } else if (status === 'done') {
-    setStatus('success', '✓ Download complete! File saved to: ' + outputDir);
+    setStatus('success', '✓ Download complete! Saved to: ' + outputDir);
     isDownloading = false;
     downloadBtn.disabled = false;
     downloadBtn.textContent = 'Download';
