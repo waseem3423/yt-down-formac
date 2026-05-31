@@ -18,176 +18,145 @@
       user-select: none;
     }
 
-    .container {
-      width: 460px;
-      padding: 32px;
-    }
+    .container { width: 460px; padding: 28px; }
 
     .header {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 28px;
-    }
-
-    .logo {
-      width: 36px;
-      height: 36px;
-      background: #ff4444;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .logo svg { display: block; }
-
-    h1 {
-      font-size: 20px;
-      font-weight: 700;
-      color: #fff;
-    }
-
-    h1 span { color: #ff4444; }
-
-    .field-label {
-      font-size: 12px;
-      color: #888;
-      margin-bottom: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .url-input {
-      width: 100%;
-      padding: 12px 14px;
-      background: #1a1a1a;
-      border: 1.5px solid #2a2a2a;
-      border-radius: 10px;
-      color: #fff;
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.15s;
-      margin-bottom: 20px;
-    }
-
-    .url-input:focus { border-color: #ff4444; }
-    .url-input::placeholder { color: #555; }
-
-    .quality-options {
-      display: flex;
-      gap: 10px;
       margin-bottom: 24px;
     }
 
-    .quality-btn {
-      flex: 1;
-      padding: 10px 0;
-      border: 1.5px solid #2a2a2a;
+    .logo {
+      width: 36px; height: 36px;
+      background: #ff4444;
       border-radius: 10px;
-      background: #1a1a1a;
-      color: #888;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center;
     }
 
-    .quality-btn:hover { border-color: #ff4444; color: #fff; }
+    h1 { font-size: 20px; font-weight: 700; }
+    h1 span { color: #ff4444; }
 
+    .field-label {
+      font-size: 11px; color: #666;
+      margin-bottom: 6px;
+      text-transform: uppercase; letter-spacing: 0.6px;
+    }
+
+    .url-input {
+      width: 100%; padding: 11px 14px;
+      background: #1a1a1a; border: 1.5px solid #2a2a2a;
+      border-radius: 10px; color: #fff; font-size: 13px;
+      outline: none; transition: border-color 0.15s;
+      margin-bottom: 18px;
+    }
+    .url-input:focus { border-color: #ff4444; }
+    .url-input::placeholder { color: #444; }
+
+    .quality-options {
+      display: flex; gap: 8px; margin-bottom: 18px;
+    }
+
+    .quality-btn {
+      flex: 1; padding: 9px 0;
+      border: 1.5px solid #2a2a2a; border-radius: 10px;
+      background: #1a1a1a; color: #666;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .quality-btn:hover { border-color: #ff4444; color: #fff; }
     .quality-btn.selected {
       border-color: #ff4444;
       background: rgba(255,68,68,0.1);
-      color: #ff4444;
-      font-weight: 600;
+      color: #ff4444; font-weight: 600;
     }
-
-    .download-btn {
-      width: 100%;
-      padding: 13px;
-      background: #ff4444;
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s, transform 0.1s;
-    }
-
-    .download-btn:hover:not(:disabled) {
-      background: #e03333;
-      transform: translateY(-1px);
-    }
-
-    .download-btn:disabled {
-      background: #2a2a2a;
-      color: #555;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .status-box {
-      margin-top: 16px;
-      padding: 12px 14px;
-      border-radius: 10px;
-      font-size: 13px;
-      display: none;
-    }
-
-    .status-box.show { display: block; }
-    .status-box.loading { background: #1a1a1a; color: #aaa; }
-    .status-box.success { background: rgba(76,175,80,0.1); color: #4caf50; border: 1px solid rgba(76,175,80,0.2); }
-    .status-box.error { background: rgba(255,68,68,0.1); color: #ff6b6b; border: 1px solid rgba(255,68,68,0.2); }
-
-    .spinner {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border: 2px solid #444;
-      border-top-color: #aaa;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      vertical-align: middle;
-      margin-right: 8px;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
 
     .output-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 20px;
+      display: flex; gap: 8px; margin-bottom: 20px;
     }
-
     .output-input {
-      flex: 1;
-      padding: 10px 12px;
-      background: #1a1a1a;
-      border: 1.5px solid #2a2a2a;
-      border-radius: 10px;
-      color: #888;
-      font-size: 12px;
-      outline: none;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      flex: 1; padding: 9px 12px;
+      background: #1a1a1a; border: 1.5px solid #2a2a2a;
+      border-radius: 10px; color: #666; font-size: 12px;
+      outline: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-
     .browse-btn {
-      padding: 10px 14px;
+      padding: 9px 14px;
+      background: #1a1a1a; border: 1.5px solid #2a2a2a;
+      border-radius: 10px; color: #666; font-size: 12px;
+      cursor: pointer; white-space: nowrap; transition: all 0.15s;
+    }
+    .browse-btn:hover { border-color: #ff4444; color: #fff; }
+
+    .download-btn {
+      width: 100%; padding: 12px;
+      background: #ff4444; color: #fff;
+      border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      margin-bottom: 14px;
+    }
+    .download-btn:hover:not(:disabled) { background: #e03333; transform: translateY(-1px); }
+    .download-btn:disabled { background: #2a2a2a; color: #444; cursor: not-allowed; transform: none; }
+
+    /* Progress section */
+    .progress-section {
+      display: none;
       background: #1a1a1a;
-      border: 1.5px solid #2a2a2a;
-      border-radius: 10px;
-      color: #888;
-      font-size: 12px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.15s;
+      border-radius: 12px;
+      padding: 14px 16px;
+      border: 1px solid #2a2a2a;
+    }
+    .progress-section.show { display: block; }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
     }
 
-    .browse-btn:hover { border-color: #ff4444; color: #fff; }
+    .progress-label {
+      font-size: 12px; color: #aaa;
+      white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; max-width: 320px;
+    }
+
+    .progress-percent {
+      font-size: 13px; font-weight: 600;
+      color: #ff4444; min-width: 40px; text-align: right;
+    }
+
+    .progress-bar-track {
+      width: 100%; height: 6px;
+      background: #2a2a2a; border-radius: 99px;
+      overflow: hidden; margin-bottom: 8px;
+    }
+
+    .progress-bar-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #ff4444, #ff7744);
+      border-radius: 99px;
+      transition: width 0.3s ease;
+    }
+
+    .progress-bar-fill.indeterminate {
+      width: 40% !important;
+      animation: indeterminate 1.2s ease-in-out infinite;
+    }
+
+    @keyframes indeterminate {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+
+    .progress-status {
+      font-size: 11px; color: #555;
+    }
+
+    .progress-status.success { color: #4caf50; }
+    .progress-status.error   { color: #ff6b6b; }
+    .progress-status.merging { color: #ffaa44; }
   </style>
 </head>
 <body>
@@ -202,12 +171,8 @@
     </div>
 
     <div class="field-label">YouTube URL</div>
-    <input
-      type="text"
-      class="url-input"
-      id="url-input"
-      placeholder="https://www.youtube.com/watch?v=..."
-    />
+    <input type="text" class="url-input" id="url-input"
+      placeholder="https://www.youtube.com/watch?v=..." />
 
     <div class="field-label">Quality</div>
     <div class="quality-options">
@@ -224,7 +189,17 @@
 
     <button class="download-btn" id="download-btn" disabled>Download</button>
 
-    <div class="status-box" id="status-box"></div>
+    <!-- Progress Section -->
+    <div class="progress-section" id="progress-section">
+      <div class="progress-header">
+        <div class="progress-label" id="progress-label">Starting...</div>
+        <div class="progress-percent" id="progress-percent">0%</div>
+      </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-bar"></div>
+      </div>
+      <div class="progress-status" id="progress-status">Downloading...</div>
+    </div>
   </div>
 
   <script type="module" src="/src/main.js"></script>

@@ -6,8 +6,9 @@ use tauri::Emitter;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DownloadProgress {
-    pub status: String,
+    pub status: String,   // "downloading" | "merging" | "done" | "error"
     pub message: String,
+    pub percent: f32,     // 0.0 - 100.0
 }
 
 #[derive(Deserialize)]
@@ -32,7 +33,8 @@ async fn start_download(
 
     let _ = window.emit("download-progress", DownloadProgress {
         status: "downloading".to_string(),
-        message: "Starting yt-dlp...".to_string(),
+        message: "Starting...".to_string(),
+        percent: 0.0,
     });
 
     let output_template = output_dir
@@ -40,8 +42,7 @@ async fn start_download(
         .to_string_lossy()
         .to_string();
 
-    let mut args: Vec<String> = Vec::new();
-    args.push(url.clone());
+    let mut args: Vec<String> = vec![url.clone()];
 
     match quality {
         "audio" => {
@@ -74,13 +75,11 @@ async fn start_download(
         "-o".to_string(), output_template,
     ]);
 
-    // Spawn yt-dlp — no console window, capture stdout for progress
     let mut cmd = Command::new("yt-dlp");
     cmd.args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    // Hide console window on Windows
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
@@ -90,17 +89,31 @@ async fn start_download(
     let mut child = cmd.spawn()
         .map_err(|e| format!("Failed to start yt-dlp: {}. Make sure yt-dlp is installed.", e))?;
 
-    // Read stdout line by line for progress updates
     if let Some(stdout) = child.stdout.take() {
         let reader = BufReader::new(stdout);
         for line in reader.lines() {
             if let Ok(line) = line {
-                if !line.trim().is_empty() {
-                    let _ = window.emit("download-progress", DownloadProgress {
-                        status: "downloading".to_string(),
-                        message: line.clone(),
-                    });
-                }
+                let line = line.trim().to_string();
+                if line.is_empty() { continue; }
+
+                // Parse percentage from yt-dlp output
+                // Example: "[download]  45.3% of 12.34MiB at 1.23MiB/s ETA 00:05"
+                let percent = parse_percent(&line);
+                let (status, msg) = if line.contains("[Merger]") || line.contains("Merging") {
+                    ("merging".to_string(), "Merging audio & video...".to_string())
+                } else if line.contains("[ExtractAudio]") || line.contains("Converting") {
+                    ("merging".to_string(), "Converting to MP3...".to_string())
+                } else if line.contains("[download]") {
+                    ("downloading".to_string(), line.clone())
+                } else {
+                    ("downloading".to_string(), line.clone())
+                };
+
+                let _ = window.emit("download-progress", DownloadProgress {
+                    status,
+                    message: msg,
+                    percent: percent.unwrap_or(0.0),
+                });
             }
         }
     }
@@ -111,10 +124,10 @@ async fn start_download(
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let error_msg = if !stderr.is_empty() { stderr } else { "Download failed".to_string() };
-
         let _ = window.emit("download-progress", DownloadProgress {
             status: "error".to_string(),
             message: error_msg.clone(),
+            percent: 0.0,
         });
         return Err(error_msg);
     }
@@ -122,9 +135,23 @@ async fn start_download(
     let _ = window.emit("download-progress", DownloadProgress {
         status: "done".to_string(),
         message: "Download complete!".to_string(),
+        percent: 100.0,
     });
 
     Ok("Download complete!".to_string())
+}
+
+fn parse_percent(line: &str) -> Option<f32> {
+    // Match pattern like "45.3%" in yt-dlp output
+    if let Some(pos) = line.find('%') {
+        let before = &line[..pos];
+        let start = before.rfind(|c: char| c == ' ' || c == '\t').map(|i| i + 1).unwrap_or(0);
+        let num_str = before[start..].trim();
+        if let Ok(val) = num_str.parse::<f32>() {
+            return Some(val.min(100.0).max(0.0));
+        }
+    }
+    None
 }
 
 #[tauri::command]
