@@ -10,11 +10,13 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -82,7 +84,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -104,7 +106,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path tauri-app/src-tauri/icons
           python -c "
-          import struct, zlib
+          import struct, zlib, os
 
           def make_rgba_png(size):
               def chunk(name, data):
@@ -120,11 +122,30 @@ jobs:
               iend = chunk(b'IEND', b'')
               return sig + ihdr + idat + iend
 
-          sizes = {'32x32.png': 32, '128x128.png': 128, '128x128@2x.png': 256}
-          for name, size in sizes.items():
-              with open('tauri-app/src-tauri/icons/' + name, 'wb') as f:
+          base = 'tauri-app/src-tauri/icons/'
+
+          # PNG icons
+          for name, size in [('32x32.png',32),('128x128.png',128),('128x128@2x.png',256)]:
+              with open(base+name,'wb') as f:
                   f.write(make_rgba_png(size))
-          print('RGBA icons created successfully')
+
+          # ICO file (Windows) — contains 16x16, 32x32, 48x48
+          def make_ico():
+              sizes = [16, 32, 48]
+              pngs = [make_rgba_png(s) for s in sizes]
+              num = len(sizes)
+              header = struct.pack('<HHH', 0, 1, num)
+              offset = 6 + num * 16
+              entries = b''
+              for i, (s, png) in enumerate(zip(sizes, pngs)):
+                  entries += struct.pack('<BBBBHHII', s, s, 0, 0, 1, 32, len(png), offset)
+                  offset += len(png)
+              return header + entries + b''.join(pngs)
+
+          with open(base+'icon.ico','wb') as f:
+              f.write(make_ico())
+
+          print('All icons created successfully')
           "
 
       - name: Build Tauri app (Windows .exe)
