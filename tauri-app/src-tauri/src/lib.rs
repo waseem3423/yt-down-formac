@@ -1,14 +1,16 @@
 use std::process::{Command, Stdio};
 use std::path::PathBuf;
 use std::io::{BufRead, BufReader};
+use std::thread;
+use std::sync::mpsc;
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DownloadProgress {
-    pub status: String,   // "downloading" | "merging" | "done" | "error"
+    pub status: String,
     pub message: String,
-    pub percent: f32,     // 0.0 - 100.0
+    pub percent: f32,
 }
 
 #[derive(Deserialize)]
@@ -24,7 +26,7 @@ async fn start_download(
     request: DownloadRequest,
 ) -> Result<String, String> {
     let url = request.url.trim().to_string();
-    let quality = request.quality.as_str();
+    let quality = request.quality.clone();
     let output_dir = PathBuf::from(&request.output_dir);
 
     if !url.contains("youtube.com/watch?v=") && !url.contains("youtu.be/") {
@@ -33,7 +35,7 @@ async fn start_download(
 
     let _ = window.emit("download-progress", DownloadProgress {
         status: "downloading".to_string(),
-        message: "Starting...".to_string(),
+        message: "Starting yt-dlp...".to_string(),
         percent: 0.0,
     });
 
@@ -44,7 +46,7 @@ async fn start_download(
 
     let mut args: Vec<String> = vec![url.clone()];
 
-    match quality {
+    match quality.as_str() {
         "audio" => {
             args.extend([
                 "-f".to_string(), "bestaudio".to_string(),
@@ -72,6 +74,7 @@ async fn start_download(
     args.extend([
         "--no-playlist".to_string(),
         "--newline".to_string(),
+        "--progress".to_string(),
         "-o".to_string(), output_template,
     ]);
 
@@ -83,53 +86,70 @@ async fn start_download(
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        cmd.creation_flags(0x08000000);
     }
 
     let mut child = cmd.spawn()
-        .map_err(|e| format!("Failed to start yt-dlp: {}. Make sure yt-dlp is installed.", e))?;
+        .map_err(|e| format!("yt-dlp not found: {}. Install with: pip install yt-dlp", e))?;
 
-    if let Some(stdout) = child.stdout.take() {
+    let stdout = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
+
+    // Channel to collect all lines from both stdout and stderr
+    let (tx, rx) = mpsc::channel::<String>();
+    let tx2 = tx.clone();
+
+    // Thread for stdout
+    thread::spawn(move || {
         let reader = BufReader::new(stdout);
         for line in reader.lines() {
-            if let Ok(line) = line {
-                let line = line.trim().to_string();
-                if line.is_empty() { continue; }
-
-                // Parse percentage from yt-dlp output
-                // Example: "[download]  45.3% of 12.34MiB at 1.23MiB/s ETA 00:05"
-                let percent = parse_percent(&line);
-                let (status, msg) = if line.contains("[Merger]") || line.contains("Merging") {
-                    ("merging".to_string(), "Merging audio & video...".to_string())
-                } else if line.contains("[ExtractAudio]") || line.contains("Converting") {
-                    ("merging".to_string(), "Converting to MP3...".to_string())
-                } else if line.contains("[download]") {
-                    ("downloading".to_string(), line.clone())
-                } else {
-                    ("downloading".to_string(), line.clone())
-                };
-
-                let _ = window.emit("download-progress", DownloadProgress {
-                    status,
-                    message: msg,
-                    percent: percent.unwrap_or(0.0),
-                });
+            if let Ok(l) = line {
+                let _ = tx.send(l);
             }
         }
+    });
+
+    // Thread for stderr
+    thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        for line in reader.lines() {
+            if let Ok(l) = line {
+                let _ = tx2.send(l);
+            }
+        }
+    });
+
+    // Process lines and emit progress
+    for line in rx {
+        let line = line.trim().to_string();
+        if line.is_empty() { continue; }
+
+        let percent = parse_percent(&line);
+
+        let (status, msg) = if line.contains("[Merger]") || line.contains("Merging formats") {
+            ("merging".to_string(), "Merging audio & video...".to_string())
+        } else if line.contains("[ExtractAudio]") || line.contains("Destination:") && line.contains(".mp3") {
+            ("merging".to_string(), "Converting to MP3...".to_string())
+        } else {
+            ("downloading".to_string(), line.clone())
+        };
+
+        let _ = window.emit("download-progress", DownloadProgress {
+            status,
+            message: msg,
+            percent: percent.unwrap_or(0.0),
+        });
     }
 
-    let output = child.wait_with_output()
-        .map_err(|e| format!("Failed to wait for yt-dlp: {}", e))?;
+    let result = child.wait().map_err(|e| e.to_string())?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        let error_msg = if !stderr.is_empty() { stderr } else { "Download failed".to_string() };
+    if !result.success() {
         let _ = window.emit("download-progress", DownloadProgress {
             status: "error".to_string(),
-            message: error_msg.clone(),
+            message: "Download failed. Check the URL and try again.".to_string(),
             percent: 0.0,
         });
-        return Err(error_msg);
+        return Err("Download failed".to_string());
     }
 
     let _ = window.emit("download-progress", DownloadProgress {
@@ -138,11 +158,10 @@ async fn start_download(
         percent: 100.0,
     });
 
-    Ok("Download complete!".to_string())
+    Ok("Done".to_string())
 }
 
 fn parse_percent(line: &str) -> Option<f32> {
-    // Match pattern like "45.3%" in yt-dlp output
     if let Some(pos) = line.find('%') {
         let before = &line[..pos];
         let start = before.rfind(|c: char| c == ' ' || c == '\t').map(|i| i + 1).unwrap_or(0);
