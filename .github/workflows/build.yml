@@ -19,37 +19,46 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Rust
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            tauri-app/src-tauri/target
+          key: macos-rust-${{ hashFiles('tauri-app/src-tauri/Cargo.lock') }}
+
       - name: Install frontend dependencies
         working-directory: tauri-app
         run: npm install
 
-      - name: Generate Tauri icons
-        working-directory: tauri-app
-        run: npx @tauri-apps/cli icon src-tauri/icons/source.png || true
-
-      - name: Create placeholder icons if missing
+      - name: Create RGBA icons
         run: |
           mkdir -p tauri-app/src-tauri/icons
-          cd tauri-app/src-tauri/icons
-          # Create minimal valid PNG files using Python
           python3 -c "
           import struct, zlib
 
-          def make_png(size):
+          def make_rgba_png(size):
               def chunk(name, data):
                   c = struct.pack('>I', len(data)) + name + data
-                  return c + struct.pack('>I', zlib.crc32(name + data) & 0xffffffff)
-              sig = b'\\x89PNG\\r\\n\\x1a\\n'
-              ihdr = chunk(b'IHDR', struct.pack('>IIBBBBB', size, size, 8, 2, 0, 0, 0))
-              row = b'\\x00' + b'\\xff\\x00\\x00' * size
+                  crc = zlib.crc32(name + data) & 0xffffffff
+                  return c + struct.pack('>I', crc)
+              sig = b'\x89PNG\r\n\x1a\n'
+              # color type 6 = RGBA
+              ihdr_data = struct.pack('>IIBBBBB', size, size, 8, 6, 0, 0, 0)
+              ihdr = chunk(b'IHDR', ihdr_data)
+              # Each row: filter byte + RGBA pixels (red with full alpha)
+              row = b'\x00' + b'\xff\x44\x44\xff' * size
               raw = row * size
               idat = chunk(b'IDAT', zlib.compress(raw))
               iend = chunk(b'IEND', b'')
               return sig + ihdr + idat + iend
 
-          for name, size in [('32x32.png',32),('128x128.png',128),('128x128@2x.png',256)]:
-              open(name,'wb').write(make_png(size))
-          print('Icons created')
+          sizes = {'32x32.png': 32, '128x128.png': 128, '128x128@2x.png': 256}
+          for name, size in sizes.items():
+              with open(f'tauri-app/src-tauri/icons/{name}', 'wb') as f:
+                  f.write(make_rgba_png(size))
+          print('RGBA icons created successfully')
           "
 
       - name: Build Tauri app (macOS .dmg)
@@ -78,31 +87,44 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Rust
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            tauri-app/src-tauri/target
+          key: windows-rust-${{ hashFiles('tauri-app/src-tauri/Cargo.lock') }}
+
       - name: Install frontend dependencies
         working-directory: tauri-app
         run: npm install
 
-      - name: Create placeholder icons if missing
+      - name: Create RGBA icons
         run: |
           New-Item -ItemType Directory -Force -Path tauri-app/src-tauri/icons
           python -c "
           import struct, zlib
 
-          def make_png(size):
+          def make_rgba_png(size):
               def chunk(name, data):
                   c = struct.pack('>I', len(data)) + name + data
-                  return c + struct.pack('>I', zlib.crc32(name + data) & 0xffffffff)
+                  crc = zlib.crc32(name + data) & 0xffffffff
+                  return c + struct.pack('>I', crc)
               sig = b'\x89PNG\r\n\x1a\n'
-              ihdr = chunk(b'IHDR', struct.pack('>IIBBBBB', size, size, 8, 2, 0, 0, 0))
-              row = b'\x00' + b'\xff\x00\x00' * size
+              ihdr_data = struct.pack('>IIBBBBB', size, size, 8, 6, 0, 0, 0)
+              ihdr = chunk(b'IHDR', ihdr_data)
+              row = b'\x00' + b'\xff\x44\x44\xff' * size
               raw = row * size
               idat = chunk(b'IDAT', zlib.compress(raw))
               iend = chunk(b'IEND', b'')
               return sig + ihdr + idat + iend
 
-          for name, size in [('32x32.png',32),('128x128.png',128),('128x128@2x.png',256)]:
-              open('tauri-app/src-tauri/icons/'+name,'wb').write(make_png(size))
-          print('Icons created')
+          sizes = {'32x32.png': 32, '128x128.png': 128, '128x128@2x.png': 256}
+          for name, size in sizes.items():
+              with open('tauri-app/src-tauri/icons/' + name, 'wb') as f:
+                  f.write(make_rgba_png(size))
+          print('RGBA icons created successfully')
           "
 
       - name: Build Tauri app (Windows .exe)
